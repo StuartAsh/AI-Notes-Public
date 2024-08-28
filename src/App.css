@@ -13,6 +13,10 @@ body {
   text-align: center;
 }
 
+select {
+  outline: none;
+}
+
 .page {
   display: inline-block;
   position: absolute;
@@ -285,4 +289,50 @@ button[disabled]:active {
   justify-content: center;
   align-items: center;
   z-index: 100;
+  backdrop-filter: blur(2px);
+}
+
+.openai-prompt {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 420px;
+  height: 240px;
+  border-radius: 20px;
+  z-index: 500;
+  padding: 20px;
+  background-color: #f9f4ed;
+  box-shadow: 8px 8px 13px rgba(0,0,0,0.4);
+  margin-left: -230px;
+  margin-top: -130px;
+}
+.openai-prompt p {
+  font-size: 18px;
+  color: rgb(55, 63, 85);
+  text-align: left;
+  line-height: 1.2;
+}
+
+.openai-prompt h1 {
+  margin-top: 0px;
+}
+
+.openai-prompt .note {
+  font-size: 12px;
+  color: rgb(94, 101, 122);
+  text-align: left;
+  margin-top: 17px;
+}
+
+.modelSelector {
+  color: white;
+  padding: 10px; 
+}
+
+.modelSelector select {
+  padding: 5px;
+  background-color: #f1fcef;
+  border: none;
+  border-radius: 13px;
+  box-shadow: inset 3px 3px 3px rgba(0,0,0,0.4);
 }
