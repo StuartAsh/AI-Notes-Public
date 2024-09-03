@@ -1,4 +1,4 @@
-import axios, { AxiosResponse } from 'axios';
+import axios from 'axios';
 import { Tab } from "../pages/notepad/notepad";
 import { useContext, useState } from 'react';
 import LoadingModal from './LoadingModal';
@@ -10,15 +10,62 @@ type toolbarProps = {
   selectedTab: number;
 };
 
-type undoContentType = {
-  content: string;
-  tabId: number;
-};
-
 export default function Toolbar({ tabs, setTabs, selectedTab }: toolbarProps) {
-  const [undoContent, setUndoContent] = useState<undoContentType>({content: "", tabId: 999});
+  const [undoContent, setUndoContent] = useState({ content: "", tabId: 999 });
   const [loading, setLoading] = useState(false);
-  const { openAiKeyID, selectedModel } = useContext<OpenAiContextType>(OpenAiContext);
+  const { selectedModel } = useContext<OpenAiContextType>(OpenAiContext);
+
+  const token = localStorage.getItem('token');
+
+  const handleApiRequest = async (endpoint: string, prompt: string) => {
+    setLoading(true);
+    try {
+      const response = await axios.post(`http://localhost:8020/${endpoint}`, {
+        prompt,
+        model: selectedModel
+      }, {
+        headers: { Authorization: token }
+      });
+      
+      setUndoContent({ content: tabs.find(tab => tab.id === selectedTab)?.content || "", tabId: selectedTab });
+      console.log("Response.data: ", response.data);
+      let newContent = "";
+      
+      if(endpoint === "research"){
+        newContent = response.data
+      } else {
+        newContent = response.data.choices[0].message.content;
+      }
+      
+      const newTabs = tabs.map(tab => {
+        if (tab.id === selectedTab) {
+          return {
+            ...tab,
+            content: newContent,
+          };
+        }
+        return tab;
+      });
+      
+      setTabs(newTabs);
+    } catch (error) {
+      if(error.response.data.error = "Failed to authenticate token"){
+        // temporary solution. Need to add graceful token expiration handling
+        localStorage.removeItem('token');
+        window.location.reload();
+      }
+      console.error('Error:', error);
+      // Handle error (e.g., show error message to user)
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSummarize = () => handleApiRequest('process', "Please provide a concise and comprehensive summary of the following information: " + tabs.find(tab => tab.id === selectedTab)?.content);
+  const handleExpand = () => handleApiRequest('research', tabs.find(tab => tab.id === selectedTab)?.content || "");
+  const handleOrganize = () => handleApiRequest('process', "Strategically organize the following information into a cohesive structure: " + tabs.find(tab => tab.id === selectedTab)?.content);
+  const handleRewrite = () => handleApiRequest('process', "Transform the following content into a professional, crystal-clear, and engaging narrative: " + tabs.find(tab => tab.id === selectedTab)?.content);
+  const generateContent = () => handleApiRequest('generate', tabs.find(tab => tab.id === selectedTab)?.content || "");
 
   const handleUndo = () => {
     if(undoContent.tabId !== 999){
@@ -31,163 +78,12 @@ export default function Toolbar({ tabs, setTabs, selectedTab }: toolbarProps) {
         }
         return tab;
       });
+
       setTabs(newTabs);
       setUndoContent({content: "", tabId: 999});
     }
   }
-
-  const handleSummarize = () => {
-    console.log('in HandleSummarize: ');
-    const selectedTabContent = tabs.find((tab) => tab.id === selectedTab)?.content || "";
-
-    if(selectedTabContent !== ""){
-      setLoading(true);
-      axios.post("http://127.0.0.1:8020/process", {
-        prompt: "Please provide a concise and comprehensive summary of the following information, highlighting key points, main ideas, and essential conclusions.: " + selectedTabContent,
-        id: openAiKeyID,
-        model: selectedModel
-      })
-      .then((response:AxiosResponse) => {
-        setUndoContent({content: selectedTabContent, tabId: selectedTab})
-        const newTabs = tabs.map((tab) => {
-          if (tab.id === selectedTab) {
-            return {
-              ...tab,
-              content: response.data.choices[0].message.content,
-            };
-          }
-          return tab;
-        });
-        setTabs(newTabs);
-        setLoading(false);
-      }).catch((error) => {
-        console.log(error);
-        setLoading(false);
-      });
-    } 
-  }
-
-  const handleExpand = () => {
-    console.log('in handleExpand: ');
-    const selectedTabContent = tabs.find((tab) => tab.id === selectedTab)?.content || "";
-
-    if(selectedTabContent !== ""){
-      setLoading(true);
-      axios.post("http://127.0.0.1:8020/research", {
-        prompt: selectedTabContent,
-        id: openAiKeyID,
-        model: selectedModel
-      })
-      .then((response:AxiosResponse) => {
-        setUndoContent({content: selectedTabContent, tabId: selectedTab})
-        const newTabs = tabs.map((tab) => {
-          if (tab.id === selectedTab) {
-            return {
-              ...tab,
-              content: response.data,
-            };
-          }
-          return tab;
-        });
-        setTabs(newTabs);
-        setLoading(false);
-      }).catch((error) => {
-        console.log(error);
-        setLoading(false);
-      });
-    } 
-  }
-
-  const handleOrganize = () => {
-    console.log('in handleOrganize: ');
-    const selectedTabContent = tabs.find((tab) => tab.id === selectedTab)?.content || "";
-    if(selectedTabContent !== ""){
-      setLoading(true);
-      axios.post("http://127.0.0.1:8020/process", {
-        prompt: "Strategically organize the following information into a cohesive structure by categorizing related information, applying uniform formatting, and introducing distinct sections for each primary topic. Please include clear labels for these sections to facilitate easy navigation and comprehension: " + selectedTabContent,
-        id: openAiKeyID,
-        model: selectedModel
-      })
-      .then((response:AxiosResponse) => {
-        setUndoContent({content: selectedTabContent, tabId: selectedTab})
-        const newTabs = tabs.map((tab) => {
-          if (tab.id === selectedTab) {
-            return {
-              ...tab,
-              content: response.data.choices[0].message.content,
-            };
-          }
-          return tab;
-        });
-        setTabs(newTabs);
-        setLoading(false);
-      }).catch((error) => {
-        console.log(error);
-        setLoading(false);
-      });
-    }   
-  }
-
-  const handleRewrite = () => {
-    console.log('in handleRewrite: ');
-    const selectedTabContent = tabs.find((tab) => tab.id === selectedTab)?.content || "";
-    if(selectedTabContent !== ""){
-      setLoading(true);
-      axios.post("http://127.0.0.1:8020/process", {
-        prompt: "Transform the following content into a professional, crystal-clear, and engaging narrative: " + selectedTabContent,
-        id: openAiKeyID,
-        model: selectedModel
-      })
-      .then((response:AxiosResponse) => {
-        setUndoContent({content: selectedTabContent, tabId: selectedTab})
-        const newTabs = tabs.map((tab) => {
-          if (tab.id === selectedTab) {
-            return {
-              ...tab,
-              content: response.data.choices[0].message.content,
-            };
-          }
-          return tab;
-        });
-        setTabs(newTabs);
-        setLoading(false);
-      }).catch((error) => {
-        console.log(error);
-        setLoading(false);
-      });
-    }   
-  }
-
-  const generateContent = () => {
-    console.log('in generateContent: ');
-    const selectedTabContent = tabs.find((tab) => tab.id === selectedTab)?.content || "";
-    if(selectedTabContent !== ""){
-      setLoading(true);
-      axios.post("http://127.0.0.1:8020/generate", {
-        prompt: selectedTabContent,
-        id: openAiKeyID,
-        model: selectedModel
-      })
-      .then((response:AxiosResponse) => {
-        setUndoContent({content: selectedTabContent, tabId: selectedTab})
-        const newTabs = tabs.map((tab) => {
-          if (tab.id === selectedTab) {
-            return {
-              ...tab,
-              content: response.data.choices[0].message.content,
-            };
-          }
-          return tab;
-        });
-        setTabs(newTabs);
-        setLoading(false);
-      }).catch((error) => {
-        console.log(error);
-        setLoading(false);
-      });
-    }
-  }
-
+  
   return (
     <>
       <div className="toolbar">
